@@ -196,7 +196,34 @@
     }
   </style>
 </head>
-<body>
+<body class="language-gated">
+
+<style>
+  body.language-gated > :not(#languageOverlay):not(script):not(style) {filter:blur(7px);pointer-events:none;user-select:none}
+  #languageOverlay {position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(24,39,35,.43);padding:16px;backdrop-filter:blur(5px)}
+  #languageOverlay[hidden]{display:none!important}
+  .language-card{width:min(520px,100%);border-radius:26px;background:#fff;padding:30px;box-shadow:0 20px 80px #142b3242;text-align:center}
+  .language-card h2{font-size:25px;margin:8px 0 7px;color:#233d35}
+  .language-card p{font-size:14px;color:#63746e;margin:0 0 22px}
+  .language-picks{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+  .language-picks button{padding:24px 8px;border-radius:19px;border:2px solid #e5eee9;background:#f8fbf9;color:#244638}
+  .language-picks button:hover,.language-picks button:focus-visible{border-color:#408d68;background:#eaf7f0}
+  .language-picks strong{display:block;font-size:20px;margin-top:8px}
+  .language-picks small{display:block;color:#64766d}
+  @media(max-width:450px){.language-card{padding:21px}.language-picks button{padding:18px 4px}}
+</style>
+<div id="languageOverlay" role="dialog" aria-modal="true" aria-labelledby="languageTitle">
+  <div class="language-card">
+    <div style="font-size:33px">🌐</div>
+    <h2 id="languageTitle">학습 언어를 선택하세요</h2>
+    <p>Choose your language · 선택 후 해당 언어의 문제와 메뉴가 표시됩니다.</p>
+    <div class="language-picks">
+      <button type="button" id="pickKorean"><span style="font-size:35px">🇰🇷</span><strong>한국어</strong><small>Korean</small></button>
+      <button type="button" id="pickEnglish"><span style="font-size:35px">🇺🇸</span><strong>English</strong><small>영어</small></button>
+    </div>
+  </div>
+</div>
+
 <div class="site-strip">Google 도구를 이해하고, 문제로 연습하고, 함께 배웁니다.</div>
 <header class="site-header">
   <div class="nav-shell">
@@ -220,8 +247,10 @@
         <select id="versionSelect">
           <option value="original">원문 버전</option>
           <option value="edited">수정문 버전</option>
+          <option value="en" hidden>English Original</option>
         </select>
       </label>
+      <button id="changeLanguage" type="button" aria-label="언어 변경">🌐 Language</button>
       <button id="adminButton" aria-label="관리자 로그인">⚙ 관리자</button>
       <button id="logout" aria-label="관리자 로그아웃" hidden>로그아웃</button>
     </div>
@@ -495,11 +524,11 @@
 
   const $ = id => document.getElementById(id);
   const KEY = 'google-tools-practice-wrong-v1';
-  let level='L1', version='original', networkBusy=0;
+  let level='L1', version='original', language='ko', networkBusy=0;
 
   function storageKey(){
     const base=version==='edited'?KEY:KEY+'-original';
-    return level==='L1'?base:base+'-L2';
+    return (level==='L1'?base:base+'-L2')+'-'+language;
   }
   function datasetName(result){return result.level+' · '+result.versionName;}
 
@@ -522,12 +551,14 @@
   function updateVersion(){
     document.documentElement.dataset.level=level;
     $('levelSelect').value=level;
-    $('versionSelect').value=version;
-    $('versionInfo').textContent=(level==='L1'?'Level 1':'Level 2')+' · '+
+    $('versionSelect').value=(language==='en'?'en':version);
+    $('versionSelect').closest('label').hidden=language==='en';
+    $('versionInfo').textContent=language==='en' ? (level+' · English original questions') : (level==='L1'?'Level 1':'Level 2')+' · '+
       (version==='original'
         ? '원문 버전: 제공하신 질문과 보기를 그대로 연습합니다.'
         : '수정문 버전: 표현을 다듬은 질문과 보기로 연습합니다.');
     refreshHero();
+    scheduleTranslate();
   }
 
   let data, list=[], index=0, selections={}, checked=new Set();
@@ -888,8 +919,8 @@
 
   function applyPublic(result){
     data=result;
-    document.title=data.settings.appName;
-    $('appName').textContent=data.settings.appName;
+    document.title=language==='en'?'Google Tools Practice':data.settings.appName;
+    $('appName').textContent=language==='en'?'Google Tools Practice':data.settings.appName;
     $('target').textContent=data.settings.targetScore;
     updateHome();
     updateVersion();
@@ -914,6 +945,7 @@
   }
 
   async function switchDataset(nextVersion,nextLevel){
+    if(language==='en') nextVersion='en';
     if(
       (nextVersion===version&&nextLevel===level)||networkBusy||
       $('editDialog').open||$('lectureDialog').open||$('toolDialog').open
@@ -965,7 +997,7 @@
   }
 
   function chooseDataset(){
-    const nextVersion=$('versionSelect').value,nextLevel=$('levelSelect').value;
+    const nextVersion=language==='en'?'en':$('versionSelect').value,nextLevel=$('levelSelect').value;
     updateVersion();
     if(currentSection==='quiz'){
       ask(
@@ -1004,8 +1036,8 @@
       settings:result.settings,questions:result.questions.filter(q=>q.active)
     };
     updateVersion();
-    document.title=data.settings.appName;
-    $('appName').textContent=data.settings.appName;
+    document.title=language==='en'?'Google Tools Practice':data.settings.appName;
+    $('appName').textContent=language==='en'?'Google Tools Practice':data.settings.appName;
     $('target').textContent=data.settings.targetScore;
     updateHome();
 
@@ -1038,11 +1070,11 @@
       const title=document.createElement('p');
       title.textContent=q.id+'. '+q.text;
       const meta=document.createElement('small');
-      meta.textContent=q.category+' · 표시순서 '+q.sortOrder+' · 정답 '+q.answers.join(',');
+      meta.textContent=q.category+(language==='en'?' · Order ':' · 표시순서 ')+q.sortOrder+(language==='en'?' · Answer ':' · 정답 ')+q.answers.join(',');
       info.append(title,meta);
       const status=document.createElement('span');
       status.className='pill'+(q.active?'':' off');
-      status.textContent=q.active?'사용':'사용 안 함';
+      status.textContent=language==='en'?(q.active?'Active':'Inactive'):(q.active?'사용':'사용 안 함');
       const pencil=document.createElement('button');
       pencil.textContent='✎';
       pencil.setAttribute('aria-label',q.id+'번 문항 수정');
@@ -1053,7 +1085,7 @@
 
     if(!items.length){
       const p=document.createElement('p');
-      p.textContent='표시할 문항이 없습니다.';
+      p.textContent=language==='en'?'No matching questions.':'표시할 문항이 없습니다.';
       $('adminList').append(p);
     }
   }
@@ -1630,6 +1662,28 @@
     $('navTools').setAttribute('aria-expanded',String(open));
   }
 
+  const TOOL_EN = {
+    'Drive':['Google Drive','File storage and sharing','Store files and share with the correct permissions.',['Organize files and folders.','Compare viewer, commenter and editor access.','Check whether recipients can access a link.']],
+    'Docs':['Google Docs','Documents and collaboration','Create and collaborate on documents.',['Use headings and tables of contents.','Comment and suggest edits.','Translate documents and use find and replace.']],
+    'Slides':['Google Slides','Slides and presentations','Build presentations with rich media.',['Link text and objects.','Add videos and navigate slides.','Check presentation access.']],
+    'Sheets':['Google Sheets','Data and analysis','Organize, calculate and analyze data.',['Apply conditional formatting.','Use pivot tables.','Explore column statistics.']],
+    'Forms':['Google Forms','Surveys and quizzes','Gather responses and check understanding.',['Choose useful question types.','Configure quizzes.','Connect responses to Sheets.']],
+    'Sites':['Google Sites','Sites and portfolios','Publish learning resources on the web.',['Organize pages.','Review site visibility.','Check permissions for embedded materials.']],
+    'Classroom':['Google Classroom','Assignments and feedback','Manage classwork and feedback.',['Distribute and collect assignments.','Use quiz assignments.','Review originality reports.']],
+    '연습 세트':['Classroom Practice Sets','Interactive practice','Support learning with practice sets.',['Create questions and supporting materials.','Provide additional help.','Check availability and sharing.']],
+    'Gmail':['Gmail','Email and organization','Manage communication by email.',['Use search and inbox tools.','Review delegation.','Check recipients and permissions.']],
+    'Calendar':['Google Calendar','Scheduling and appointments','Plan events and invite participants.',['Invite people.','Add Meet links.','Use appointment schedules.']],
+    'Meet':['Google Meet','Video meetings','Connect with learners and colleagues.',['Join meetings.','Share and present materials.','Review participation features.']],
+    'Chat':['Google Chat','Messaging and spaces','Communicate through messages and spaces.',['Send messages.','Organize topics in spaces.','Manage notifications.']],
+    'ChromeOS':['ChromeOS Accessibility','Accessibility tools','Help students access learning.',['Explore screen reader settings.','Distinguish device and document features.','Match settings to learning needs.']],
+    'YouTube':['YouTube','Learning videos','Find and share learning videos.',['Choose goal-aligned videos.','Share and embed videos.','Check viewing access.']],
+    '도구 연계':['Google Tools Together','Integrating tools','Combine tools to support learning.',['Clarify learning outcomes.','Choose suitable tools.','Confirm sharing permissions.']]
+  };
+  function toolLocalized(g){return language==='en'?(TOOL_EN[g[0]]||[g[1],g[3],g[4],g[5]]):[g[1],g[3],g[4],g[5]];}
+  function refreshToolMenuLanguage(){
+    $('megaColumns').replaceChildren(); $('heroTiles').replaceChildren();
+    buildToolMenus();
+  }
   function openTool(g,source){
     if(networkBusy||$('lectureDialog').open||$('editDialog').open)return;
     selectedTool=g;
@@ -1637,11 +1691,12 @@
     closeTools(false);
     $('toolIcon').textContent=g[2];
     $('toolIcon').style.setProperty('--tile',g[6]);
-    $('toolTitle').textContent=g[1];
-    $('toolSummary').textContent=g[4];
+    const localTool=toolLocalized(g);
+    $('toolTitle').textContent=localTool[0];
+    $('toolSummary').textContent=localTool[2];
     $('toolPoints').replaceChildren();
 
-    g[5].forEach(t=>{
+    localTool[3].forEach(t=>{
       const li=document.createElement('li');
       li.textContent=t;
       $('toolPoints').append(li);
@@ -1649,11 +1704,11 @@
 
     const count=toolQuestions(g[0]).length;
     $('toolCount').textContent=(level==='L1'?'Level 1':'Level 2')+' · '+
-      (version==='original'?'원문':'수정문')+' · 관련 '+count+'문항';
+      (language==='en'?'English Original':version==='original'?'원문':'수정문')+' · '+(language==='en'?count+' questions': '관련 '+count+'문항');
     $('toolPractice').disabled=!count;
     $('toolPractice').textContent=count
-      ? '이 도구 '+count+'문항 풀기 →'
-      : '이 선택에는 관련 문항이 없습니다';
+      ? (language==='en'?'Practice '+count+' questions →':'이 도구 '+count+'문항 풀기 →')
+      : (language==='en'?'No questions for this selection':'이 선택에는 관련 문항이 없습니다');
     $('toolDialog').showModal();
     selectorState();
   }
@@ -1688,7 +1743,7 @@
   }
 
   function buildToolMenus(){
-    ['문서 · 자료','수업 · 소통','확장 · 접근성'].forEach((name,idx)=>{
+    (language==='en'?['Documents & files','Teaching & communication','More tools & accessibility']:['문서 · 자료','수업 · 소통','확장 · 접근성']).forEach((name,idx)=>{
       const column=document.createElement('section');
       column.className='mega-column';
       const h=document.createElement('h2');
@@ -1706,8 +1761,8 @@
         const text=document.createElement('span');
         const title=document.createElement('strong');
         const desc=document.createElement('small');
-        title.textContent=g[1];
-        desc.textContent=g[3];
+        title.textContent=toolLocalized(g)[0];
+        desc.textContent=toolLocalized(g)[1];
         text.append(title,desc);
         b.append(icon,text);
         b.onclick=()=>openTool(g,$('navTools'));
@@ -1727,7 +1782,7 @@
       icon.textContent=g[2];
       icon.setAttribute('aria-hidden','true');
       const t=document.createElement('span');
-      t.textContent=g[1].replace('Google ','');
+      t.textContent=toolLocalized(g)[0].replace('Google ','');
       b.append(icon,t);
       b.onclick=()=>openTool(g,b);
       $('heroTiles').append(b);
@@ -1784,9 +1839,181 @@
     }
   });
 
+
+  // Interface translations. Question statements, options and explanations are
+  // taken directly from the selected sheet and are never machine-translated.
+  const UI_EN = {
+    '학습하기':'Practice','도구별 안내 ▾':'Tool Guide ▾','강의하기':'Present',
+    '문제 레벨':'Question level','문항 버전':'Question version','⚙ 관리자':'⚙ Admin',
+    '⚙ 관리':'⚙ Manage','로그아웃':'Sign out','학습 시작하기 →':'Start practicing →',
+    '도구 둘러보기 ↗':'Explore tools ↗','Google 도구,':'Google tools,',
+    '이해하고 함께 연습해요.':'learn and practice together.',
+    '연습 · 이해 · 복습':'Learn · Practice · Review',
+    '도구별 핵심 기능을 살펴보고, 상황에 맞는 활용 방법을 문제로 익혀 보세요.':'Explore key features and practice choosing the right tools for real situations.',
+    '수업에 필요한 Google 도구를':'Google tools for learning',
+    '한곳에서 차근차근':'Explore at your own pace',
+    '기본 기능과 활용을 익혀요':'Build essential skills', '도구를 연결하고 응용해요':'Connect and apply tools',
+    '원하는 방식으로 문제를 풀어 보세요':'Choose how you want to practice',
+    '아래에서 풀이 방법을 고른 뒤, 시작 버튼을 누르세요.':'Choose an answer mode and start.',
+    '① 정답을 언제 확인할까요?':'① When should answers be checked?',
+    '한 문제씩 정답 확인':'Check answers after each question',
+    '답을 고르고 ‘정답 확인’을 눌러 해설을 읽어요.':'Select your answer and check the explanation.',
+    '연습하기':'Practice mode','모두 푼 뒤 한 번에 채점':'Grade after completing all questions',
+    '문제를 모두 푼 뒤 ‘전체 채점’을 눌러 결과를 봐요.':'Complete your answers, then grade the quiz.',
+    '실력 확인하기':'Exam mode','② 문제를 어떤 순서로 풀까요?':'② In what order?',
+    '1번부터 차례대로':'In order','문항 번호 순서로 풀어요.':'Follow question order.',
+    '순서를 섞어서':'Shuffle','문항 순서를 무작위로 바꿔요.':'Randomize question order.',
+    '‘랜덤 10문항 풀기’는 위 선택과 관계없이 문항과 순서를 무작위로 정합니다.':'Random 10 always selects and shuffles questions.',
+    '③ 아래 버튼을 눌러 시작하세요':'③ Choose a practice set',
+    '모든 문항을 차근차근 풀기':'Practice all questions',
+    '랜덤 10문항 풀기 →':'Practice 10 random questions →',
+    '짧게 집중해서 연습하기':'Quick practice session',
+    '이 브라우저에 저장된 오답 다시 풀기':'Retry questions missed in this browser',
+    '처음으로':'Home','이전':'Previous','다음':'Next','정답 확인':'Check answer',
+    '전체 채점':'Grade all','풀이 결과':'Quiz results','이번 오답 다시 풀기':'Retry incorrect answers',
+    '문항별 답과 해설':'Answers and explanations','문항 관리':'Question management',
+    '▶ 강의용 페이지':'▶ Presentation','새로 불러오기':'Refresh','학습 화면':'Practice',
+    '✎ 버튼으로 문항·보기·정답·해설·표시순서·사용여부를 수정합니다.':'Click ✎ to edit the question, choices, answers, explanation, order and visibility.',
+    '전체 구분':'All categories','사용':'Active','사용 안 함':'Inactive',
+    '강의용 페이지':'Presentation mode','문항 관리로':'Back to management',
+    '① 상단에서':'① Select','문제 레벨':'question level','과':'and','문항 버전':'question version',
+    '을 선택하세요.':'at the top.','② 아래 도구별 구성을 확인하고':'② Review the tools and click',
+    '프레젠테이션 시작':'Start presentation',
+    '을 누르세요.':'to begin.',
+    '도구 안내 1장 → 해당 도구의 문제 → 다음 도구 안내 순서로 진행합니다. 여러 도구가 연결된 문항은 ‘구분’의 첫 번째 도구에 배치합니다. 강의 응답은 오답 목록에 저장하지 않습니다.':'Each tool introduction is followed by its questions. Presentation answers are not saved to missed questions.',
+    '▶ 프레젠테이션 시작':'▶ Start presentation',
+    '제공하신 문항을 바탕으로 만든 학습용 자료입니다. 공식 시험이나 공식 정답표가 아닙니다.':'Practice materials only. Not an official Google examination or answer key.',
+    '취소':'Cancel','확인':'Confirm','관리자 로그인':'Admin sign in',
+    '관리자 비밀번호':'Admin password','로그인':'Sign in', '문항 수정':'Edit question',
+    '구분':'Category','새 구분':'New category','문항':'Question',
+    '보기 개수':'Number of choices','표시순서':'Display order','사용여부':'Enabled',
+    '정답 번호 — 복수 선택 가능':'Correct choices — multiple allowed','해설':'Explanation',
+    '저장':'Save','← 이전':'← Previous','정답·해설 공개':'Reveal answer and explanation',
+    '다음 →':'Next →','✕ 닫기':'✕ Close','닫기':'Close',
+    '도구를 선택해 핵심 안내와 관련 문제를 확인하세요.':'Choose a tool for an overview and related questions.',
+    'Google 공식 학습 센터 ↗':'Google Learning Center ↗',
+    '이 도구 문제 풀기 →':'Practice questions for this tool →',
+    '다시 불러오기':'Retry','문항 검색':'Search questions',
+    '사용 가능한 문항이 없습니다.':'No active questions are available.',
+    '문항을 불러오는 중…':'Loading questions…',
+    '하나를 선택해 주세요.':'Choose one answer.',
+    '✓ 정답입니다.':'✓ Correct!','↺ 다시 살펴보세요.':'↺ Review this question.',
+    '💡 문항 설명':'💡 Explanation','미응답':'Unanswered',
+    '정답과 해설':'Answer and explanation',
+    '강의를 마쳤습니다.':'Presentation completed.',
+    '사용 중인 문항이 없습니다. 문항 관리에서 사용여부를 확인하세요.':'No active questions. Check visibility in Question management.',
+    '로그인 중…':'Signing in…','저장 중…':'Saving…',
+    '관리자로 로그인했습니다.':'Signed in as administrator.',
+    '로그아웃했습니다.':'Signed out.',
+    '목록을 새로 불러왔습니다.':'Question list refreshed.',
+    '표시할 문항이 없습니다.':'No matching questions.',
+    '문항을 불러오는 중입니다. 잠시 기다려 주세요.':'Questions are loading. Please wait.',
+    '영어':'English','한국어':'Korean',
+    '이름·이메일은 입력하지 않습니다. 오답 목록은 이 브라우저에만 저장됩니다. 개인정보·응시 결과는 서버에 기록하지 않습니다.':'No name or email is required. Missed questions are saved only in this browser. Personal information and quiz results are not stored on the server.',
+    '복수 정답 문항은 안내된 개수만큼 선택해 모두 맞혀야 정답입니다.':'For multiple-answer questions, select all correct options.',
+    '← → 키로 이동 · Space 키로 정답·해설 공개 · Esc 키로 닫기 · 보기 선택은 마우스나 Tab 키로 진행합니다.':'Use ← → to navigate · Space to reveal · Esc to close · Mouse or Tab to select.',
+    '학습 화면으로 이동':'Go to practice','현재 풀이를 종료하고 학습 화면으로 이동할까요? 확인한 오답은 유지됩니다.':'Leave the current quiz? Saved mistakes will remain.',
+    '정답 번호를 하나 이상 선택해 주세요.':'Select at least one correct answer.',
+    '어떤 순서로 풀까요?':'Choose question order',
+    '처음으로 이동':'Return home',
+    '현재 풀이를 종료하고 처음으로 돌아갈까요? 확인한 오답은 유지됩니다.':'Leave this quiz and return home? Missed questions will remain saved.',
+    '사용 가능한':'Available','문항':'questions',
+    '선택한 언어의 문제가 없습니다.':'No questions are available in the selected language.'
+  };
+  const UI_PATTERNS = [
+    [/전체 (\d+)문항 풀기 →/g,'Practice all $1 questions →'],
+    [/틀린 (\d+)문항 다시 풀기 →/g,'Retry $1 incorrect questions →'],
+    [/목표 점수: (\d+)점/g,'Target score: $1'],
+    [/문항 (\d+)번/g,'Question $1'],
+    [/(\d+)개를 선택해 주세요\./g,'Select $1 answers.'],
+    [/정답: /g,'Correct answer: '],
+    [/내 답: /g,'Your answer: '],
+    [/사용 가능한 (\d+)문항/g,'$1 available questions'],
+    [/관련 (\d+)문항/g,'$1 related questions'],
+    [/도구 안내 1장 · 문제 (\d+)개/g,'1 overview slide · $1 questions'],
+    [/(\d+)개 도구/g,'$1 tools'],
+    [/(\d+)문항/g,'$1 questions'],
+    [/(\d+)장/g,'$1 slides'],
+    [/정답 (\d+)/g,'Answer $1'],
+    [/전체 (\d+)문항/g,'Total $1 questions'],
+    [/사용 (\d+)문항/g,'$1 active'],
+    [/표시 (\d+)문항/g,'$1 shown'],
+    [/보기 (\d+)/g,'Choice $1'],
+    [/번 문항 수정/g,' edit question'],
+    [/점입니다\./g,' points.'],
+    [/점/g,' points'],
+  ];
+  function translateUI(text) {
+    if(language!=='en'||!text||!/[가-힣]/.test(text))return text;
+    if(UI_EN[text.trim()])return text.replace(text.trim(),UI_EN[text.trim()]);
+    let changed=text;
+    for(const [ko,en] of Object.entries(UI_EN)){
+      if(ko.length>=8 && changed.includes(ko))changed=changed.split(ko).join(en);
+    }
+    UI_PATTERNS.forEach(([regex,en])=>{changed=changed.replace(regex,en);});
+    return changed;
+  }
+  let translationScheduled=false;
+  const SKIP_TRANSLATE = new Set(['question','choices','reviews','editText','editOptions','editExplanation','lectureContent','toolSummary','toolPoints','toolTitle','category','adminList','editCategory','toolCount']);
+  function translateNodes(root) {
+    if(language!=='en')return;
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    let node;
+    while((node=walker.nextNode())){
+      const parent=node.parentElement;
+      if(!parent||parent.closest('script,style,textarea,option'))continue;
+      if([...SKIP_TRANSLATE].some(id=>parent.closest('#'+id)))continue;
+      const out=translateUI(node.nodeValue);
+      if(out!==node.nodeValue)node.nodeValue=out;
+    }
+    document.querySelectorAll('input[placeholder]').forEach(el=>{if(el.id==='search')el.placeholder='Search questions';});
+  }
+  function scheduleTranslate(){
+    if(language!=='en'||translationScheduled)return;
+    translationScheduled=true;
+    requestAnimationFrame(()=>{translationScheduled=false;translateNodes(document.body);});
+  }
+  const uiObserver=new MutationObserver(scheduleTranslate);
+  uiObserver.observe(document.documentElement,{subtree:true,childList:true,characterData:true});
+  function openLanguageGate(){
+    document.body.classList.add('language-gated');
+    $('languageOverlay').hidden=false;
+    $('pickKorean').focus();
+  }
+  async function selectLanguage(next){
+    if(networkBusy||editBusy||lectureBusy)return;
+    if(language==='en' && next==='ko') {
+      sessionStorage.setItem('gce-next-language','ko');
+      location.reload();return;
+    }
+    language=next;
+    version=next==='en'?'en':'original';
+    level='L1';
+    token='';authUI();
+    adminData=null;lectureData=null;
+    readWrong();
+    refreshToolMenuLanguage();
+    document.documentElement.lang=next;
+    $('languageOverlay').hidden=true;
+    document.body.classList.remove('language-gated');
+    updateVersion();
+    await load();
+    scheduleTranslate();
+  }
+  $('pickKorean').onclick=()=>selectLanguage('ko');
+  $('pickEnglish').onclick=()=>selectLanguage('en');
+  $('changeLanguage').onclick=()=>{
+    if(networkBusy||$('lectureDialog').open||$('editDialog').open)return;
+    if(currentSection==='quiz'){
+      ask(language==='en'?'Change language':'언어 변경',language==='en'?'Leave the current quiz and select another language?':'현재 풀이를 종료하고 언어를 변경할까요?',openLanguageGate);
+    }else openLanguageGate();
+  };
+
   buildToolMenus();
   startBridge();
-  load();
+  openLanguageGate();
+  const requestedLanguage=sessionStorage.getItem('gce-next-language');
+  if(requestedLanguage){sessionStorage.removeItem('gce-next-language');selectLanguage(requestedLanguage);}
 </script>
 </body>
 </html>
