@@ -922,7 +922,7 @@
     }
   });
   function bridgeRpc(name,...args){
-    const allowed=['getPracticeData','loginAdmin','logoutAdmin','getAdminData','saveQuestion','getLectureData'];
+    const allowed=['getPracticeData','loginAdmin','logoutAdmin','getAdminData','saveQuestion','getLectureData','getEnglishScenarios'];
     if(!allowed.includes(name))return Promise.reject(new Error('허용되지 않은 API입니다.'));
     return bridgeReadyPromise.then(()=>new Promise((resolve,reject)=>{
       const id=bridgeNextId++;
