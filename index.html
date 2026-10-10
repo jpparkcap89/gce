@@ -2,7 +2,6 @@
 <html lang="ko" data-level="L1">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google 도구 연습실</title>
   <style>
     :root{--green:#945060;--ink:#30312f;--muted:#75656b;--line:#ecd9df;--page:#fbf0f3;--surface:#fffafb;--soft:#f8e5eb;--hover:#f6e9ed;--accent-hover:#7b3f4d;--tag:#f3dce4}
@@ -120,6 +119,7 @@
     .lecture-footer .muted{font-size:13px}
     @media(max-width:640px){.lecture-summary{grid-template-columns:1fr}.lecture-header,.lecture-footer{padding:10px}.lecture-body{padding:16px}.lecture-intro{padding:8px 0}.lecture-intro ul{padding-left:23px}.lecture-header .row{gap:6px}.lecture-jump{max-width:100%}.lecture-body .choice{padding:10px}dialog.lecture-dialog{width:98vw;height:98dvh;max-height:98dvh}.lecture-footer .actions{margin-top:6px}}
 
+    /* Lattice에서 참고한 넓은 메뉴와 파스텔 카드 구성 */
     :root{--page:#fffafa;--surface:#fff;--soft:#fff0ee;--hero-a:#ffe3db;--hero-b:#f3dff6;--hero-c:#fff5d9;--shadow:0 8px 28px #3a243309}
     :root[data-level="L2"]{--page:#fafffc;--surface:#fff;--soft:#eaf8ef;--hero-a:#c9f5e4;--hero-b:#e7e5fa;--hero-c:#f4fad7;--shadow:0 8px 28px #193f2909}
     body{background:linear-gradient(180deg,#fff 100px,var(--page) 680px);color:#203b34}
@@ -493,9 +493,6 @@
 <script>
   'use strict';
 
-  // ★ 중요: 3단계에서 배포한 구글 앱스 스크립트 웹앱 URL을 입력해 주세요.
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwX4_UcBcqE_R8ONKuAPCEmxo5o02RzCfyfSEgUf5vBWhOrvs9vWY7IKKSToQwfDOrG/exec";
-
   const $ = id => document.getElementById(id);
   const KEY = 'google-tools-practice-wrong-v1';
   let level='L1', version='original', networkBusy=0;
@@ -815,21 +812,75 @@
   $('back').onclick=()=>show('home');
   $('retry').onclick=()=>start('retry',lastWrong.slice());
 
-  // ★ 구글 앱스 스크립트 통신용 fetch RPC 구현
+  // GitHub 주소에서 실행할 GAS 웹앱 /exec 주소를 입력합니다.
+  const GAS_WEB_APP_URL = 'PASTE_YOUR_GAS_EXEC_URL_HERE';
+  const BRIDGE_CHANNEL = 'GCE_GAS_BRIDGE_V1';
+  const bridgeNonce = (() => {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, x=>x.toString(16).padStart(2,'0')).join('');
+  })();
+  let bridgeReady = false, bridgeFrame, bridgeWindow, bridgeStart, bridgeNextId=1;
+  const bridgePending = new Map();
+  const bridgeReadyPromise = new Promise((resolve,reject)=>{
+    bridgeStart = {resolve,reject};
+  });
+  function startBridge(){
+    if(!GAS_WEB_APP_URL.startsWith('https://script.google.com/')) {
+      bridgeStart.reject(new Error('index.html의 GAS_WEB_APP_URL에 GAS /exec 주소를 설정해 주세요.'));
+      return;
+    }
+    bridgeFrame=document.createElement('iframe');
+    bridgeFrame.title='GAS 데이터 통신';
+    bridgeFrame.setAttribute('aria-hidden','true');
+    bridgeFrame.tabIndex=-1;
+    bridgeFrame.style.cssText='position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
+    const url = new URL(GAS_WEB_APP_URL);
+    url.searchParams.set('bridge','1');
+    url.searchParams.set('nonce',bridgeNonce);
+    bridgeFrame.src=url.toString();
+    document.body.append(bridgeFrame);
+    setTimeout(()=>{
+      if(!bridgeReady) bridgeStart.reject(new Error('GAS 통신 브리지 응답이 없습니다. 배포 설정과 브라우저의 제3자 쿠키 제한을 확인해 주세요.'));
+    },20000);
+  }
+  window.addEventListener('message', event=>{
+    if(!bridgeFrame) return;
+    const m=event.data;
+    if(!m || m.channel!==BRIDGE_CHANNEL || m.nonce!==bridgeNonce) return;
+    // GAS HtmlService는 자체 내부 iframe을 한 겹 더 만듭니다.
+    // 그러므로 ready 메시지의 송신 window와 연결별 nonce를 함께 검증합니다.
+    if(m.type!=='ready' && event.source!==bridgeWindow) return;
+    if(m.type==='ready'){
+      if(!bridgeReady){bridgeWindow=event.source;bridgeReady=true;bridgeStart.resolve();}
+      return;
+    }
+    if(m.type==='response' && Number.isSafeInteger(m.id)){
+      const pending=bridgePending.get(m.id);
+      if(!pending)return;
+      bridgePending.delete(m.id);
+      clearTimeout(pending.timer);
+      if(m.ok) pending.resolve(m.result);
+      else pending.reject(new Error(m.error || '서버 요청에 실패했습니다.'));
+    }
+  });
+  function bridgeRpc(name,...args){
+    const allowed=['getPracticeData','loginAdmin','logoutAdmin','getAdminData','saveQuestion','getLectureData'];
+    if(!allowed.includes(name))return Promise.reject(new Error('허용되지 않은 API입니다.'));
+    return bridgeReadyPromise.then(()=>new Promise((resolve,reject)=>{
+      const id=bridgeNextId++;
+      const timer=setTimeout(()=>{
+        bridgePending.delete(id);
+        reject(new Error('서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.'));
+      },45000);
+      bridgePending.set(id,{resolve,reject,timer});
+      bridgeWindow.postMessage({channel:BRIDGE_CHANNEL,nonce:bridgeNonce,type:'request',id,method:name,args},'*');
+    }));
+  }
   function rpc(name,...args){
     networkBusy++;
     selectorState();
-    return fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: name, args: args })
-    })
-    .then(res => res.json())
-    .then(res => {
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    })
-    .finally(()=>{
+    return bridgeRpc(name,...args).finally(()=>{
       networkBusy--;
       selectorState();
     });
@@ -1500,11 +1551,11 @@
       '표의 데이터를 정리하고 차이를 살펴봅니다.',
       ['조건부 서식으로 값의 차이를 표시합니다.','피벗 테이블로 데이터를 집계합니다.','열 통계로 데이터 분포를 살펴봅니다.'],'#dcf7e6',0],
     ['Forms','Google Forms','✓','설문과 퀴즈 만들기',
-      '질문을 만들고 응답을 모옵니다.',
+      '질문을 만들고 응답을 모읍니다.',
       ['목적에 맞는 질문 유형을 고릅니다.','설문과 퀴즈의 설정을 구분합니다.','응답을 Sheets와 연결합니다.'],'#ece4ff',0],
     ['Sites','Google Sites','▣','학습 자료와 포트폴리오',
       '여러 자료를 웹 페이지로 모아 공유합니다.',
-      ['페이지에 학습 자료를 모옵니다.','사이트 게시와 접근 권한을 확인합니다.','삽입한 문서의 권한도 확인합니다.'],'#e4edff',0],
+      ['페이지에 학습 자료를 모읍니다.','사이트 게시와 접근 권한을 확인합니다.','삽입한 문서의 권한도 확인합니다.'],'#e4edff',0],
     ['Classroom','Google Classroom','C','과제와 피드백 관리',
       '수업 자료와 과제, 피드백을 한곳에서 관리합니다.',
       ['과제 배포·제출 흐름을 살펴봅니다.','퀴즈 과제의 성적 가져오기를 확인합니다.','원본성 보고서로 인용을 점검합니다.'],'#e3f8ce',1],
@@ -1522,7 +1573,7 @@
       ['회의 참여와 오디오 설정을 살펴봅니다.','화면 공유와 대화 기능을 활용합니다.','학교의 사용 설정과 제공 조건을 확인합니다.'],'#d9f6e7',1],
     ['Chat','Google Chat','☏','메시지와 스페이스',
       '메시지와 스페이스에서 의견을 나눕니다.',
-      ['개인 또는 그룹과 소통합니다.','주제별로 자료와 대화를 모옵니다.','알림과 소통 규칙을 정합니다.'],'#def4ed',1],
+      ['개인 또는 그룹과 소통합니다.','주제별로 자료와 대화를 모읍니다.','알림과 소통 규칙을 정합니다.'],'#def4ed',1],
     ['ChromeOS','ChromeOS 접근성','♧','학생의 기기 이용 지원',
       '학생의 필요에 맞게 기기 이용을 지원합니다.',
       ['화면 읽기 등 접근성 지원을 살펴봅니다.','문서 번역과 기기 기능을 구분합니다.','학생에게 필요한 지원을 먼저 확인합니다.'],'#f5efce',2],
@@ -1734,6 +1785,7 @@
   });
 
   buildToolMenus();
+  startBridge();
   load();
 </script>
 </body>
