@@ -2,7 +2,7 @@
 <html lang="ko" data-level="L1">
 <head>
   <meta charset="UTF-8">
-  <title>Google 도구 연습실</title>
+  <title>Google Tools Practice</title>
   <style>
     :root{--green:#945060;--ink:#30312f;--muted:#75656b;--line:#ecd9df;--page:#fbf0f3;--surface:#fffafb;--soft:#f8e5eb;--hover:#f6e9ed;--accent-hover:#7b3f4d;--tag:#f3dce4}
     :root[data-level="L2"]{--green:#30644f;--muted:#60736a;--line:#d7e5dc;--page:#eef7f0;--surface:#fbfefb;--soft:#e4f2e8;--hover:#e9f4ec;--accent-hover:#244c3c;--tag:#ddecdf}
@@ -651,7 +651,7 @@
     box.className='explanation';
     const title=document.createElement('h3');
     title.className='explanation-title';
-    title.textContent='💡 문항 설명';
+    title.textContent=language==='en'?'💡 Explanation':'💡 문항 설명';
     const body=document.createElement('p');
     body.className='explanation-text';
     body.textContent=text;
@@ -709,7 +709,7 @@
       status.textContent=correct(q)?'✓ 정답입니다.':'↺ 다시 살펴보세요.';
       const answer=document.createElement('p');
       answer.className='feedback-answer';
-      answer.textContent='정답: '+answerText(q,q.answers);
+      answer.textContent=(language==='en'?'Correct answer: ':'정답: ')+answerText(q,q.answers);
       head.append(status,answer);
       $('feedback').className='feedback';
       $('feedback').replaceChildren(head,explanationBox(q.explanation));
@@ -1444,23 +1444,22 @@
       });
       const hint=document.createElement('p');
       hint.className='muted';
-      hint.textContent='관련 문제 '+g.questions.length+'개 · 다음을 눌러 문제 풀이를 시작하세요.';
+      hint.textContent=language==='en' ? g.questions.length+' related questions · Select Next to begin.' : '관련 문제 '+g.questions.length+'개 · 다음을 눌러 문제 풀이를 시작하세요.';
       const source=document.createElement('a');
       source.href=g.sourceUrl;
       source.target='_blank';
       source.rel='noopener noreferrer';
-      source.textContent='Google 공식 도움말';
+      source.textContent=language==='en'?'Google official help':'Google 공식 도움말';
       source.className='muted';
       $('lectureContent').append(p,ul,hint,source);
     }else{
       const hint=document.createElement('p');
       hint.className='pill';
-      hint.textContent='문항 '+q.id+'번 · '+q.category+' · '+
-        (q.answers.length>1?q.answers.length+'개 선택':'하나 선택');
+      hint.textContent=language==='en' ? 'Question '+q.id+' · '+q.category+' · '+(q.answers.length>1?'Select '+q.answers.length+' answers':'Select one answer') : '문항 '+q.id+'번 · '+q.category+' · '+(q.answers.length>1?q.answers.length+'개 선택':'하나 선택');
 
       const fs=document.createElement('fieldset');
       const legend=document.createElement('legend');
-      legend.textContent='보기를 선택한 뒤 정답을 확인하세요.';
+      legend.textContent=language==='en'?'Choose your answer, then check the result.':'보기를 선택한 뒤 정답을 확인하세요.';
       fs.append(legend);
 
       q.options.forEach((text,i)=>{
@@ -1497,19 +1496,17 @@
         head.className='feedback-head '+(complete?(lectureCorrect(q)?'good':'bad'):'good');
         const status=document.createElement('p');
         status.className='feedback-status';
-        status.textContent=complete
-          ? (lectureCorrect(q)?'✓ 정답입니다.':'↺ 다시 살펴보세요.')
-          : '정답과 해설';
+        status.textContent=language==='en' ? (complete?(lectureCorrect(q)?'✓ Correct!':'↺ Review the answer.'):'Answer and explanation') : (complete?(lectureCorrect(q)?'✓ 정답입니다.':'↺ 다시 살펴보세요.'):'정답과 해설');
         const answer=document.createElement('p');
         answer.className='feedback-answer';
-        answer.textContent='정답: '+answerText(q,q.answers);
+        answer.textContent=(language==='en'?'Correct answer: ':'정답: ')+answerText(q,q.answers);
         head.append(status,answer);
         $('lectureContent').append(head,explanationBox(q.explanation));
       }
     }
 
     $('lecturePrev').disabled=lectureIndex===0;
-    $('lectureNext').textContent=lectureIndex===lectureSlides.length-1?'강의 마치기 ✓':'다음 →';
+    $('lectureNext').textContent=lectureIndex===lectureSlides.length-1?(language==='en'?'Finish presentation ✓':'강의 마치기 ✓'):(language==='en'?'Next →':'다음 →');
     $('lectureCheck').hidden=intro;
     $('lectureReveal').hidden=intro;
     $('lectureCheck').disabled=!intro&&lectureShown.has(q.id);
