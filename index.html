@@ -130,6 +130,7 @@
     .nav-shell{width:85%;max-width:1280px;margin:auto;padding:15px 0;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
     .brand{display:flex;align-items:center;gap:9px}
     .brand-mark{display:grid;place-items:center;width:35px;height:35px;background:linear-gradient(135deg,var(--hero-a),var(--hero-b));border-radius:11px;color:var(--green);font-size:22px;font-weight:800}
+    .brand-mark{background:#ffffff!important;border:1px solid #e5e7eb!important;box-shadow:none!important;color:inherit!important}
     .brand h1{font-size:19px;letter-spacing:-.6px}
     .nav-links{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
     .nav-link{border-color:transparent;background:transparent;font-weight:600;padding:9px 12px}
@@ -194,7 +195,20 @@
       main{margin:0}
       .site-strip{font-size:11px}
     }
-  </style>
+  
+/* Site guide dialog */
+.guide-dialog{width:min(720px,94vw);max-height:min(88vh,780px);padding:0;border:1px solid var(--line);border-radius:20px;overflow:auto;background:var(--surface)}
+.guide-header{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;background:var(--surface);padding:16px 20px;border-bottom:1px solid var(--line);z-index:2}
+.guide-header h2{margin:0;font-size:21px}
+.guide-body{padding:16px 22px 24px}
+.guide-step{display:flex;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+.guide-step-num{display:grid;place-items:center;flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--soft);color:var(--green);font-weight:800}
+.guide-step strong{display:block;font-size:16px}
+.guide-step p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.guide-action{margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
+.guide-action a{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:10px 16px;border-radius:10px;background:var(--green);color:#fff;text-decoration:none;font-weight:700}
+@media(max-width:640px){.guide-body{padding:12px 16px 20px}.guide-header{padding:12px 16px}}
+</style>
 </head>
 <body class="language-gated">
 
@@ -457,6 +471,12 @@
 <dialog id="scenarioHintDialog"><h2>Step-by-step hint</h2><p id="scenarioHintText" class="sc-content"></p><div class="row actions"><button id="scenarioHintClose" class="primary">Close</button></div></dialog>
 
 </main>
+
+
+<dialog id="siteGuideDialog" class="guide-dialog" aria-labelledby="siteGuideTitle">
+  <div class="guide-header"><h2 id="siteGuideTitle">사이트 이용 안내</h2><button type="button" id="siteGuideClose" aria-label="닫기">✕</button></div>
+  <div id="siteGuideBody" class="guide-body"></div>
+</dialog>
 
 <div id="toast" role="status" hidden></div>
 
@@ -2092,10 +2112,6 @@
     s.tasks.forEach(task=>{const stage=document.createElement('article');stage.className='sc-stage';stage.append(textEl('h3',txt('작업 ','Task ')+task.no+' · '+task.title));
       const body=textEl('div',task.instructions);body.className='sc-content';stage.append(body);
       const actions=document.createElement('div');actions.className='sc-actions';
-      const taskTool=(/Drive|드라이브/i.test(task.title)&&s.tool!=='Google Calendar')?'Google Drive':s.tool;
-      const taskLink=document.createElement('a');taskLink.href=external[taskTool]||'https://workspace.google.com';taskLink.target='_blank';taskLink.rel='noopener noreferrer';taskLink.className='sc-tool-link';
-      taskLink.textContent=ko()?('↗ '+({'Google Classroom':'구글 클래스룸','Google Docs':'구글 문서','Google Forms':'구글 설문','Google Slides':'구글 프레젠테이션','Google Calendar':'구글 캘린더','Google Drive':'구글 드라이브'}[taskTool]||taskTool)+' 열기'):'↗ Open '+taskTool;
-      actions.append(taskLink);
       const h=document.createElement('button');h.type='button';h.textContent=txt('💡 힌트','💡 Hint');h.onclick=()=>hint(s,task);actions.append(h);
       const label=document.createElement('label');label.style.cssText='display:flex;gap:8px;align-items:center';
       const cb=document.createElement('input');cb.type='checkbox';cb.checked=done.has(task.no);cb.onchange=()=>{const now=state(s);if(cb.checked)now.add(task.no);else now.delete(task.no);store(s,now);render();};
@@ -2124,11 +2140,112 @@
   el('scenarioReturn').onclick=()=>show('home');el('scenarioHintClose').onclick=()=>el('scenarioHintDialog').close();
   el('levelSelect').addEventListener('change',()=>{if(!el('scenarioSection').hidden){setTimeout(openScenarios,350);}});
   el('scenarioHintDialog').addEventListener('close',()=>{});
+
+  /* Overlay-click closing: preserve work in the question editor. */
+  (function enableBackdropClose(){
+    const closable=['scenarioHintDialog','toolDialog','loginDialog','modal','editDialog'];
+    let editBaseline='';
+    const editor=document.getElementById('editDialog');
+    const editorForm=document.getElementById('editForm');
+    const signature=()=>JSON.stringify(Array.from(editorForm.querySelectorAll('input,textarea,select')).map(input=>[input.id,input.value,input.type==='checkbox'?input.checked:null]));
+    const editObserver=new MutationObserver(()=>{
+      if(editor.open) editBaseline=signature();
+    });
+    editObserver.observe(editor,{attributes:true,attributeFilter:['open']});
+    closable.forEach(id=>{
+      const dlg=document.getElementById(id);
+      if(!dlg)return;
+      dlg.addEventListener('pointerdown',event=>{
+        // A native dialog receives backdrop clicks on the dialog itself;
+        // test the pointer position so blank internal dialog space does not close it.
+        const r=dlg.getBoundingClientRect();
+        dlg.dataset.backdropDown=String(event.target===dlg && (event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom));
+      });
+      dlg.addEventListener('click',event=>{
+        const r=dlg.getBoundingClientRect();
+        const outside=event.target===dlg && (event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom);
+        if(!outside || dlg.dataset.backdropDown!=='true')return;
+        dlg.dataset.backdropDown='false';
+        if(id==='editDialog'){
+          if(editBusy)return;
+          if(signature()!==editBaseline){
+            ask(language==='en'?'Discard changes?':'수정 내용 취소',language==='en'?'Discard unsaved changes and close this editor?':'저장하지 않은 수정 사항을 버리고 닫을까요?',()=>{dlg.close();selectorState();});
+          }else{dlg.close();selectorState();}
+        }else if(id==='loginDialog'){
+          if(loginBusy)return;
+          pendingRoute='';dlg.close();
+        }else if(id==='modal'){
+          modalAction=null;dlg.close();
+        }else dlg.close();
+      });
+    });
+  })();
+
   const observer=new MutationObserver(()=>{if(!el('scenarioSection').hidden)updateLabels();});
   observer.observe(el('scenarioSection'),{attributes:true,attributeFilter:['hidden']});
   const langBtns=['pickKorean','pickEnglish'];
   langBtns.forEach(id=>{const btn=el(id);if(btn)btn.addEventListener('click',()=>{setTimeout(updateLabels,0);});});
   updateLabels();
+})();
+</script>
+
+
+<script>
+/* Site guide – bilingual, entirely client-side. */
+(() => {
+  'use strict';
+  const byId=id=>document.getElementById(id);
+  const dialog=byId('siteGuideDialog');
+  const body=byId('siteGuideBody');
+  const button=document.createElement('button');
+  button.type='button';button.id='navSiteGuide';button.className='nav-link';
+  const nav=byId('navStudy').parentElement;
+  nav.appendChild(button);
+  const words={
+    ko:{nav:'사이트 이용 안내',title:'사이트 이용 안내',intro:'Google 도구 연습실 추천 학습 순서',steps:[
+      ['1. Level 1 학습문제 풀기','레벨을 Level 1로 선택한 뒤 학습하기에서 도구별 문제를 풀고, 정답과 해설을 확인하세요.'],
+      ['2. Level 1 실습 시나리오 수행','실습 시나리오에서 실제 Google 도구를 열어 과제를 수행하세요. 단계별 힌트를 활용하고 완료 여부를 직접 체크할 수 있습니다.'],
+      ['3. Level 2 학습문제 풀기','기본 학습을 마친 뒤 Level 2로 변경하여 응용 문제와 해설을 학습하세요.'],
+      ['4. Level 2 실습 시나리오 수행','Level 2 실습에서 도구 간 연계 및 공동작업 과제를 연습하세요.']
+    ],certTitle:'Google 교육자 인증 시험',cert:'학습과 실습을 마쳤다면 아래 공식 인증 페이지에서 시험 및 인증 정보를 확인하세요.',link:'인증 페이지 열기 ↗',note:'이 사이트는 비공식 연습 자료입니다. 학습·실습 결과가 Google 공식 인증으로 자동 반영되지는 않습니다.',close:'닫기'},
+    en:{nav:'How to Use',title:'How to Use This Site',intro:'Recommended learning path for Google Tools Practice',steps:[
+      ['1. Practice Level 1 questions','Select Level 1, work through the practice questions, and review the answers and explanations.'],
+      ['2. Complete Level 1 practical scenarios','Open the relevant Google tool and complete each hands-on task. Use step-by-step hints and mark your own progress.'],
+      ['3. Practice Level 2 questions','Move to Level 2 to build advanced skills with more challenging questions and explanations.'],
+      ['4. Complete Level 2 practical scenarios','Practice tool integration and collaboration with Level 2 hands-on scenarios.']
+    ],certTitle:'Google Educator Certification',cert:'After studying and practicing, visit the official certification website for exam and certification details.',link:'Open certification website ↗',note:'This is an unofficial practice site. Completing its activities does not grant Google certification.',close:'Close'}
+  };
+  const elt=(tag,text,cls)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;};
+  function english(){return typeof language!=='undefined' && language==='en';}
+  function render(){
+    const s=english()?words.en:words.ko;
+    button.textContent='ⓘ '+s.nav;
+    byId('siteGuideTitle').textContent=s.title;
+    byId('siteGuideClose').setAttribute('aria-label',s.close);
+    body.replaceChildren(elt('p',s.intro,'muted'));
+    for(let i=0;i<s.steps.length;i++){
+      const item=elt('div',undefined,'guide-step');
+      const n=elt('span',i+1,'guide-step-num');
+      const detail=elt('div');detail.append(elt('strong',s.steps[i][0]),elt('p',s.steps[i][1]));
+      item.append(n,detail);body.append(item);
+    }
+    const box=elt('div',undefined,'guide-action');
+    box.append(elt('strong',s.certTitle),elt('p',s.cert));
+    const link=elt('a',s.link);link.href='https://educertifications.google';
+    link.target='_blank';link.rel='noopener noreferrer';
+    box.append(link);body.append(box,elt('p',s.note,'muted'));
+  }
+  button.onclick=()=>{render();dialog.showModal();};
+  byId('siteGuideClose').onclick=()=>dialog.close();
+  dialog.addEventListener('click',event=>{
+    if(event.target!==dialog)return;
+    const rect=dialog.getBoundingClientRect();
+    if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();
+  });
+  const observer=new MutationObserver(()=>render());
+  const anchor=byId('appName');
+  if(anchor)observer.observe(anchor,{characterData:true,childList:true,subtree:true});
+  render();
 })();
 </script>
 
