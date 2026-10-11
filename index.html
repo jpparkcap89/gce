@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <title>Google 도구 연습실</title>
+  <link rel="icon" type="image/x-icon" href="https://www.google.com/favicon.ico">
+  <link rel="shortcut icon" href="https://www.google.com/favicon.ico">
   <style>
     :root{--green:#945060;--ink:#30312f;--muted:#75656b;--line:#ecd9df;--page:#fbf0f3;--surface:#fffafb;--soft:#f8e5eb;--hover:#f6e9ed;--accent-hover:#7b3f4d;--tag:#f3dce4}
     :root[data-level="L2"]{--green:#30644f;--muted:#60736a;--line:#d7e5dc;--page:#eef7f0;--surface:#fbfefb;--soft:#e4f2e8;--hover:#e9f4ec;--accent-hover:#244c3c;--tag:#ddecdf}
@@ -55,6 +57,17 @@
     .review h3{font-size:16px;margin:0 0 8px}
     .review p{white-space:pre-wrap}
     .error{color:#a44332}
+    .legacy-controls{display:none!important}
+    .radio-control{display:flex;align-items:center;gap:7px;white-space:nowrap}
+    .radio-caption{font-size:12px;color:var(--muted);font-weight:650}
+    .radio-options{display:inline-flex;gap:3px;border:1px solid var(--line);background:#fff;border-radius:11px;padding:3px}
+    .radio-options label{margin:0;position:relative;cursor:pointer}
+    .radio-options input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer}
+    .radio-options label span{display:block;padding:7px 10px;border-radius:8px;font-size:13px;font-weight:650;line-height:1.2}
+    .radio-options input:checked+span{background:var(--soft);color:var(--green);box-shadow:inset 0 0 0 1px var(--line)}
+    .radio-options input:focus-visible+span{outline:3px solid #498dce;outline-offset:2px}
+    .radio-options input:disabled+span{opacity:.5;cursor:default}
+    @media(max-width:800px){.radio-control{gap:4px}.radio-options label span{padding:7px 8px}.nav-controls{flex-wrap:wrap}}
     #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#233b31;color:#fff;padding:10px 18px;border-radius:12px;max-width:90%;z-index:10}
     dialog{border:1px solid var(--line);border-radius:16px;width:min(430px,92%);padding:22px;max-height:85vh;overflow:auto}
     dialog::backdrop{background:#19342866}
@@ -252,19 +265,24 @@
     </nav>
     <div class="nav-controls">
       <button id="changeLanguage" type="button" aria-label="언어 변경">🌐 Language</button>
-      <label>문제 레벨
-        <select id="levelSelect">
-          <option value="L1">Level 1</option>
-          <option value="L2">Level 2</option>
-        </select>
-      </label>
-      <label>문항 버전
-        <select id="versionSelect">
-          <option value="original">원문 버전</option>
-          <option value="edited">수정문 버전</option>
-          <option value="en" hidden>English Original</option>
-        </select>
-      </label>
+      <div class="radio-control" aria-labelledby="levelCaption">
+        <span id="levelCaption" class="radio-caption">레벨</span>
+        <div class="radio-options" id="levelRadios" role="radiogroup" aria-labelledby="levelCaption">
+          <label><input type="radio" name="levelRadio" value="L1" checked><span>L1</span></label>
+          <label><input type="radio" name="levelRadio" value="L2"><span>L2</span></label>
+        </div>
+      </div>
+      <div class="radio-control" aria-labelledby="versionCaption">
+        <span id="versionCaption" class="radio-caption">버전</span>
+        <div class="radio-options" id="versionRadios" role="radiogroup" aria-labelledby="versionCaption">
+          <label><input type="radio" name="versionRadio" value="edited" checked><span class="revisedLabel">수정문</span></label>
+          <label><input type="radio" name="versionRadio" value="original"><span class="originalLabel">원문</span></label>
+        </div>
+      </div>
+      <div class="legacy-controls" aria-hidden="true">
+        <select id="levelSelect" tabindex="-1"><option value="L1">Level 1</option><option value="L2">Level 2</option></select>
+        <select id="versionSelect" tabindex="-1"><option value="original">원문 버전</option><option value="edited">수정문 버전</option><option value="en">English Original</option><option value="enRevised">English Revised</option></select>
+      </div>
       <button id="adminButton" title="관리자 / Admin" aria-label="관리자 로그인 / Admin login">⚙</button>
       <button id="logout" aria-label="관리자 로그아웃" hidden>로그아웃</button>
     </div>
@@ -572,10 +590,10 @@
 
   const $ = id => document.getElementById(id);
   const KEY = 'google-tools-practice-wrong-v1';
-  let level='L1', version='original', language='ko', networkBusy=0;
+  let level='L1', version='edited', language='ko', networkBusy=0;
 
   function storageKey(){
-    const base=version==='edited'?KEY:KEY+'-original';
+    const base=version==='edited'?KEY:KEY+'-'+version;
     return (level==='L1'?base:base+'-L2')+'-'+language;
   }
   function datasetName(result){return result.level+' · '+result.versionName;}
@@ -584,6 +602,7 @@
     const busy=networkBusy>0||$('editDialog').open||$('lectureDialog').open||$('toolDialog').open;
     $('levelSelect').disabled=busy;
     $('versionSelect').disabled=busy;
+    document.querySelectorAll('[name=levelRadio],[name=versionRadio]').forEach(el=>el.disabled=busy);
     $('heroL1').disabled=busy;
     $('heroL2').disabled=busy;
   }
@@ -596,15 +615,42 @@
     }catch(e){}
   }
 
+  function syncVersionRadios(){
+    const english=language==='en';
+    $('levelCaption').textContent=english?'Level':'레벨';
+    $('versionCaption').textContent=english?'Version':'버전';
+    document.querySelectorAll('[name=levelRadio]').forEach(el=>el.checked=el.value===level);
+    document.querySelectorAll('[name=versionRadio]').forEach(el=>{
+      const original=el.dataset.kind==='original'||el.value==='original'||el.value==='en';
+      el.dataset.kind=original?'original':'revised';
+      el.value=original?(english?'en':'original'):(english?'enRevised':'edited');
+      el.checked=el.value===version;
+      const label=el.nextElementSibling;
+      label.textContent=original?(english?'Original':'원문'):(english?'Revised':'수정문');
+    });
+  }
+  // Keep the existing quiz logic and accessibility behavior while displaying radios.
+  document.querySelectorAll('[name=levelRadio]').forEach(r=>r.addEventListener('change',()=>{
+    if(!r.checked)return;
+    $('levelSelect').value=r.value;
+    $('levelSelect').dispatchEvent(new Event('change',{bubbles:true}));
+  }));
+  document.querySelectorAll('[name=versionRadio]').forEach(r=>r.addEventListener('change',()=>{
+    if(!r.checked)return;
+    $('versionSelect').value=r.value;
+    $('versionSelect').dispatchEvent(new Event('change',{bubbles:true}));
+  }));
   function updateVersion(){
     document.documentElement.dataset.level=level;
     $('levelSelect').value=level;
-    $('versionSelect').value=(language==='en'?'en':version);
-    $('versionSelect').closest('label').hidden=language==='en';
-    $('versionInfo').textContent=language==='en' ? (level+' · English original questions') : (level==='L1'?'Level 1':'Level 2')+' · '+
+    $('versionSelect').value=version;
+    syncVersionRadios();
+    [...$('versionSelect').options].forEach(o=>{o.hidden=(language==='en')?!['en','enRevised'].includes(o.value):!['original','edited'].includes(o.value);});
+    $('versionInfo').textContent=language==='en' ? (level+' · '+(version==='enRevised'?'English revised questions':'English original questions')) : (level==='L1'?'Level 1':'Level 2')+' · '+
       (version==='original'
         ? '원문 버전: 제공하신 질문과 보기를 그대로 연습합니다.'
         : '수정문 버전: 표현을 다듬은 질문과 보기로 연습합니다.');
+    localizePracticeStatics();
     refreshHero();
     scheduleTranslate();
   }
@@ -620,7 +666,7 @@
     const target=$('lectureDialog').open?$('lectureMessage'):$('toast');
     $('toast').hidden=true;
     $('lectureMessage').hidden=true;
-    target.textContent=message;
+    target.textContent=language==='en'?translateUI(String(message)):message;
     target.hidden=false;
     clearTimeout(toastTimer);
     toastTimer=setTimeout(()=>target.hidden=true,3500);
@@ -635,7 +681,40 @@
     updateHome();
   }
 
+  // Keep interpolated counts and localized labels in the selected language.
+  // The older text-node translator cannot translate strings split by <b> tags.
+  function localizePracticeStatics(){
+    const en=language==='en';
+    const all=$('all').querySelector('strong');
+    const allCount=$('total');
+    if(all&&allCount){
+      for(const n of [...all.childNodes])if(n.nodeType===Node.TEXT_NODE)n.remove();
+      all.insertBefore(document.createTextNode(en?'Practice all ':'전체 '),allCount);
+      all.appendChild(document.createTextNode(en?' questions →':'문항 풀기 →'));
+    }
+    const wrong=$('wrong').querySelector('strong');
+    const wrongCount=$('wrongCount');
+    if(wrong&&wrongCount){
+      for(const n of [...wrong.childNodes])if(n.nodeType===Node.TEXT_NODE)n.remove();
+      wrong.insertBefore(document.createTextNode(en?'Retry ':'틀린 '),wrongCount);
+      wrong.appendChild(document.createTextNode(en?' incorrect questions →':'문항 다시 풀기 →'));
+    }
+    const target=$('target');
+    if(target){
+      const p=target.closest('p');
+      if(p){
+        for(const n of [...p.childNodes])if(n.nodeType===Node.TEXT_NODE)n.remove();
+        p.insertBefore(document.createTextNode(en?'For multiple-answer questions, select all correct options. Target score: ':'복수 정답 문항은 안내된 개수만큼 선택해 모두 맞혀야 정답입니다. 목표 점수: '),target);
+        p.appendChild(document.createTextNode(en?' points':'점'));
+      }
+    }
+    const cap=$('levelCaption'),vc=$('versionCaption');
+    if(cap)cap.textContent=en?'Level':'레벨';
+    if(vc)vc.textContent=en?'Version':'버전';
+  }
+
   function updateHome(){
+    localizePracticeStatics();
     refreshHero();
     const available=data?data.questions.filter(q=>wrong.has(q.id)).length:0;
     $('wrongCount').textContent=available;
@@ -806,8 +885,10 @@
 
   function ask(title,message,action){
     modalAction=action;
-    $('modalTitle').textContent=title;
-    $('modalText').textContent=message;
+    $('modalTitle').textContent=language==='en'?translateUI(String(title)):title;
+    $('modalText').textContent=language==='en'?translateUI(String(message)):message;
+    $('cancel').textContent=language==='en'?'Cancel':'취소';
+    $('ok').textContent=language==='en'?'Confirm':'확인';
     $('modal').showModal();
   }
 
@@ -834,14 +915,14 @@
     $('summary').replaceChildren();
     const big=document.createElement('div');
     big.className='score';
-    big.textContent=score+'점';
+    big.textContent=language==='en'?score+' points':score+'점';
     const p=document.createElement('p');
-    p.textContent=list.length+'문항 중 '+count+'문항 정답 · 오답 '+lastWrong.length+'문항';
+    p.textContent=language==='en'?count+' correct out of '+list.length+' questions · '+lastWrong.length+' incorrect':list.length+'문항 중 '+count+'문항 정답 · 오답 '+lastWrong.length+'문항';
     const goal=document.createElement('p');
     goal.className='muted';
     goal.textContent=score>=data.settings.targetScore
-      ? '목표 점수를 달성했습니다.'
-      : '목표 점수는 '+data.settings.targetScore+'점입니다. 해설을 읽고 오답을 다시 풀어 보세요.';
+      ? (language==='en'?'You reached the target score.':'목표 점수를 달성했습니다.')
+      : (language==='en'?'Target score: '+data.settings.targetScore+' points. Review the explanations and retry missed questions.':'목표 점수는 '+data.settings.targetScore+'점입니다. 해설을 읽고 오답을 다시 풀어 보세요.');
     const badge=document.createElement('p');
     badge.className='pill';
     badge.textContent=datasetName(data);
@@ -993,7 +1074,7 @@
   }
 
   async function switchDataset(nextVersion,nextLevel){
-    if(language==='en') nextVersion='en';
+    if(language==='en' && !['en','enRevised'].includes(nextVersion)) nextVersion='en';
     if(
       (nextVersion===version&&nextLevel===level)||networkBusy||
       $('editDialog').open||$('lectureDialog').open||$('toolDialog').open
@@ -1045,18 +1126,18 @@
   }
 
   function chooseDataset(){
-    const nextVersion=language==='en'?'en':$('versionSelect').value,nextLevel=$('levelSelect').value;
-    updateVersion();
+    const nextVersion=$('versionSelect').value,nextLevel=$('levelSelect').value;
     if(currentSection==='quiz'){
       ask(
-        '문제 선택 변경',
-        '레벨이나 버전을 바꾸면 현재 풀이가 종료됩니다. 오답 기록은 레벨·버전별로 유지됩니다. 변경할까요?',
+        language==='en'?'Change question set':'문제 선택 변경',
+        language==='en'?'Changing the level or version will end this quiz. Missed questions are saved separately for each level and version. Continue?':'레벨이나 버전을 바꾸면 현재 풀이가 종료됩니다. 오답 기록은 레벨·버전별로 유지됩니다. 변경할까요?',
         ()=>switchDataset(nextVersion,nextLevel)
       );
+      syncVersionRadios();
     }else switchDataset(nextVersion,nextLevel);
   }
 
-  $('levelSelect').onchange=chooseDataset;
+  $('levelSelect').onchange=()=>{ $('versionSelect').value=language==='en'?'enRevised':'edited'; chooseDataset(); };
   $('versionSelect').onchange=chooseDataset;
 
   function authUI(){
@@ -1690,8 +1771,8 @@
   function refreshHero(){
     if(!$('heroMeta'))return;
     $('heroMeta').textContent=(level==='L1'?'Level 1':'Level 2')+' · '+
-      (version==='original'?'원문 버전':'수정문 버전')+' · 사용 가능한 '+
-      (data?data.questions.length:0)+'문항';
+      (language==='en'?(version==='en'?'Original':'Revised'):(version==='original'?'원문 버전':'수정문 버전'))+' · '+
+      (language==='en'?(data?data.questions.length:0)+' available questions':'사용 가능한 '+(data?data.questions.length:0)+'문항');
     $('heroL1').classList.toggle('active',level==='L1');
     $('heroL2').classList.toggle('active',level==='L2');
     $('heroL1').disabled=networkBusy>0;
@@ -1752,7 +1833,7 @@
 
     const count=toolQuestions(g[0]).length;
     $('toolCount').textContent=(level==='L1'?'Level 1':'Level 2')+' · '+
-      (language==='en'?'English Original':version==='original'?'원문':'수정문')+' · '+(language==='en'?count+' questions': '관련 '+count+'문항');
+      (language==='en'?(version==='enRevised'?'English Revised':'English Original'):version==='original'?'원문':'수정문')+' · '+(language==='en'?count+' questions': '관련 '+count+'문항');
     $('toolPractice').disabled=!count;
     $('toolPractice').textContent=count
       ? (language==='en'?'Practice '+count+' questions →':'이 도구 '+count+'문항 풀기 →')
@@ -1891,6 +1972,9 @@
   // Interface translations. Question statements, options and explanations are
   // taken directly from the selected sheet and are never machine-translated.
   const UI_EN = {
+    '목표 points수':'Target score', '수정문 버전':'Revised', '원문 버전':'Original',
+    '문항 풀기 →':' questions →', '문항 다시 풀기 →':' incorrect questions →',
+    '전체 ':'Practice all ', '틀린 ':'Retry ',
     '학습하기':'Practice','도구별 안내 ▾':'Tool Guide ▾','강의하기':'Present',
     '문제 레벨':'Question level','문항 버전':'Question version','⚙ 관리자':'⚙ Admin',
     '⚙ 관리':'⚙ Manage','로그아웃':'Sign out','학습 시작하기 →':'Start practicing →',
@@ -1931,6 +2015,19 @@
     '도구 안내 1장 → 해당 도구의 문제 → 다음 도구 안내 순서로 진행합니다. 여러 도구가 연결된 문항은 ‘구분’의 첫 번째 도구에 배치합니다. 강의 응답은 오답 목록에 저장하지 않습니다.':'Each tool introduction is followed by its questions. Presentation answers are not saved to missed questions.',
     '▶ 프레젠테이션 시작':'▶ Start presentation',
     '제공하신 문항을 바탕으로 만든 학습용 자료입니다. 공식 시험이나 공식 정답표가 아닙니다.':'Practice materials only. Not an official Google examination or answer key.',
+    '문제 선택 변경':'Change question set',
+    '레벨이나 버전을 바꾸면 현재 풀이가 종료됩니다. 오답 기록은 레벨·버전별로 유지됩니다. 변경할까요?':'Changing the level or version ends this quiz. Missed questions remain saved for each level and version. Continue?',
+    '전체 채점':'Grade all',
+    '문항의 답변이 완료되지 않았습니다. 미응답·불완전 답변을 오답으로 처리하고 채점할까요?':' answers are incomplete. Count unanswered or partially answered questions as incorrect and grade now?',
+    '오답 저장이 제한되어 이번 화면에서만 복습할 수 있습니다.':'Your browser could not save missed questions. Review is available in this session only.',
+    '변경할까요?':'Continue?',
+    '사이트 이용 안내':'How to Use',
+    '처음으로 이동':'Return home',
+    '문제풀이로 돌아가기':'Back to practice',
+    '문항 검색':'Search questions',
+    '문항 1번':'Question 1',
+    '연습':'Practice',
+    '정답을 확인해 주세요.':'Please check your answer.',
     '취소':'Cancel','확인':'Confirm','관리자 로그인':'Admin sign in',
     '관리자 비밀번호':'Admin password','로그인':'Sign in', '문항 수정':'Edit question',
     '구분':'Category','새 구분':'New category','문항':'Question',
@@ -1969,6 +2066,8 @@
     '선택한 언어의 문제가 없습니다.':'No questions are available in the selected language.'
   };
   const UI_PATTERNS = [
+    [/(\d+)문항의 답변이 완료되지 않았습니다\. 미응답·불완전 답변을 오답으로 처리하고 채점할까요\?/g,'$1 answers are incomplete. Count unanswered or partial answers as incorrect and grade now?'],
+    [/문항 (\d+)번/g,'Question $1'],
     [/전체 (\d+)문항 풀기 →/g,'Practice all $1 questions →'],
     [/틀린 (\d+)문항 다시 풀기 →/g,'Retry $1 incorrect questions →'],
     [/목표 점수: (\d+)점/g,'Target score: $1'],
@@ -2003,6 +2102,23 @@
   }
   let translationScheduled=false;
   const SKIP_TRANSLATE = new Set(['question','choices','reviews','editText','editOptions','editExplanation','lectureContent','toolSummary','toolPoints','toolTitle','category','adminList','editCategory','toolCount']);
+  // Preserve the source Korean UI strings before translating them to English.
+  // This lets us switch back without reloading a sandboxed GAS iframe.
+  const translatedTextNodes = new Map();
+  const translatedAttributes = new Map();
+  function restoreKoreanUI(){
+    for(const [node, record] of translatedTextNodes){
+      if(node.isConnected && node.nodeValue===record.translated) node.nodeValue=record.original;
+    }
+    translatedTextNodes.clear();
+    for(const [el, attributes] of translatedAttributes){
+      if(!el.isConnected)continue;
+      for(const [attr,record] of attributes){
+        if(el.getAttribute(attr)===record.translated)el.setAttribute(attr,record.original);
+      }
+    }
+    translatedAttributes.clear();
+  }
   function translateNodes(root) {
     if(language!=='en')return;
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
@@ -2012,9 +2128,25 @@
       if(!parent||parent.closest('script,style,textarea,option'))continue;
       if([...SKIP_TRANSLATE].some(id=>parent.closest('#'+id)))continue;
       const out=translateUI(node.nodeValue);
-      if(out!==node.nodeValue)node.nodeValue=out;
+      if(out!==node.nodeValue){
+        if(!translatedTextNodes.has(node)) translatedTextNodes.set(node,{original:node.nodeValue,translated:out});
+        else translatedTextNodes.get(node).translated=out;
+        node.nodeValue=out;
+      }
     }
     document.querySelectorAll('input[placeholder]').forEach(el=>{if(el.id==='search')el.placeholder='Search questions';});
+    document.querySelectorAll('[aria-label],[title]').forEach(el=>{
+      ['aria-label','title'].forEach(attr=>{const v=el.getAttribute(attr);if(v&&/[가-힣]/.test(v)){
+        const translated=translateUI(v);
+        if(v!==translated){
+          if(!translatedAttributes.has(el))translatedAttributes.set(el,new Map());
+          const attrs=translatedAttributes.get(el);
+          if(!attrs.has(attr))attrs.set(attr,{original:v,translated});
+          else attrs.get(attr).translated=translated;
+          el.setAttribute(attr,translated);
+        }
+      }});
+    });
   }
   function scheduleTranslate(){
     if(language!=='en'||translationScheduled)return;
@@ -2030,18 +2162,21 @@
   }
   async function selectLanguage(next){
     if(networkBusy||editBusy||lectureBusy)return;
-    if(language==='en' && next==='ko') {
-      sessionStorage.setItem('gce-next-language','ko');
-      location.reload();return;
+    if(language==='en' && next==='ko'){
+      // Avoid reloading the GAS HTML-service iframe (may yield a blank page).
+      // Stop translation before reverting previously translated text and labels.
+      language='ko';
+      restoreKoreanUI();
     }
     language=next;
-    version=next==='en'?'en':'original';
+    version=next==='en'?'enRevised':'edited';
     level='L1';
     token='';authUI();
     adminData=null;lectureData=null;
     readWrong();
     refreshToolMenuLanguage();
     document.documentElement.lang=next;
+    document.querySelector('.site-strip').textContent=next==='en'?'Understand Google tools, practice with questions, and learn together.':'Google 도구를 이해하고, 문제로 연습하고, 함께 배웁니다.';
     $('languageOverlay').hidden=true;
     document.body.classList.remove('language-gated');
     updateVersion();
@@ -2069,8 +2204,7 @@
   buildToolMenus();
   startBridge();
   openLanguageGate();
-  const requestedLanguage=sessionStorage.getItem('gce-next-language');
-  if(requestedLanguage){sessionStorage.removeItem('gce-next-language');selectLanguage(requestedLanguage);}
+  // Language switching no longer uses sessionStorage or location.reload().
 </script>
 
 <script>
@@ -2249,5 +2383,29 @@
 })();
 </script>
 
+<script>
+/* Certification registration guide link: follows current site language. */
+(function(){
+  const nav=document.getElementById('navSiteGuide');
+  if(!nav)return;
+  const a=document.createElement('a');
+  a.id='navExamRegistration';a.className='nav-link';
+  a.target='_blank';a.rel='noopener noreferrer';
+  a.style.textDecoration='none';a.style.display='inline-flex';a.style.alignItems='center';
+  nav.insertAdjacentElement('afterend',a);
+  function refresh(){
+    const english=typeof language!=='undefined'&&language==='en';
+    a.textContent=english?'Exam Registration ↗':'시험 등록 안내 ↗';
+    a.href='https://gce.cap89.com/exam-guide.html?lang='+(english?'en':'ko');
+  }
+  refresh();
+  const title=document.getElementById('appName');
+  if(title)new MutationObserver(refresh).observe(title,{childList:true,subtree:true,characterData:true});
+  const ko=document.getElementById('pickKorean'),en=document.getElementById('pickEnglish');
+  for(const b of [ko,en])if(b)b.addEventListener('click',()=>queueMicrotask(refresh));
+  const languageButton=document.getElementById('languageButton');
+  if(languageButton)languageButton.addEventListener('click',()=>queueMicrotask(refresh));
+})();
+</script>
 </body>
 </html>
