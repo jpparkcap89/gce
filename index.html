@@ -1038,6 +1038,17 @@
     }));
   }
   function rpc(name,...args){
+    // All question-loading endpoints use canonical DB version codes.
+    if (['getPracticeData','getAdminData','getLectureData'].includes(name)) {
+      const versionArg = name === 'getPracticeData' ? 0 : 1;
+      const normalized = {
+        revised:'edited', original:'original',
+        enOriginal:'en', englishOriginal:'en',
+        enRevised:'enRevised', englishRevised:'enRevised'
+      };
+      if (typeof args[versionArg] === 'string')
+        args[versionArg] = normalized[args[versionArg]] || args[versionArg];
+    }
     networkBusy++;
     selectorState();
     return bridgeRpc(name,...args).finally(()=>{
@@ -1065,9 +1076,9 @@
       $('loading').replaceChildren();
       const p=document.createElement('p');
       p.className='error';
-      p.textContent='불러오지 못했습니다. '+(error.message||'잠시 후 다시 시도해 주세요.');
+      p.textContent=(language==='en'?'Unable to load questions. ':'불러오지 못했습니다. ')+(error.message|| (language==='en'?'Please try again later.':'잠시 후 다시 시도해 주세요.'));
       const b=document.createElement('button');
-      b.textContent='다시 불러오기';
+      b.textContent=language==='en'?'Retry':'다시 불러오기';
       b.onclick=load;
       $('loading').append(p,b);
     }
@@ -2176,6 +2187,9 @@
     readWrong();
     refreshToolMenuLanguage();
     document.documentElement.lang=next;
+    const displayName = next==='en' ? 'Google Tools Practice' : (data?.settings?.appName || 'Google 도구 연습실');
+    $('appName').textContent=displayName;
+    document.title=displayName;
     document.querySelector('.site-strip').textContent=next==='en'?'Understand Google tools, practice with questions, and learn together.':'Google 도구를 이해하고, 문제로 연습하고, 함께 배웁니다.';
     $('languageOverlay').hidden=true;
     document.body.classList.remove('language-gated');
