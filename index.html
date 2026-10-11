@@ -1118,7 +1118,7 @@
       }
 
       updateVersion();
-      notify(datasetName(result)+'을 불러왔습니다.');
+      notify(language==='en' ? (result.level+' · '+(version==='enRevised'?'Revised':'Original')+' questions loaded successfully.') : (datasetName(result)+'을 불러왔습니다.'));
     }catch(error){
       updateVersion();
       notify(serverError(error));
@@ -2391,7 +2391,7 @@
   const a=document.createElement('a');
   a.id='navExamRegistration';a.className='nav-link';
   a.target='_blank';a.rel='noopener noreferrer';
-  a.style.textDecoration='none';a.style.display='inline-flex';a.style.alignItems='center';
+  a.style.textDecoration='none';a.style.display='inline-flex';a.style.alignItems='center';a.style.color='var(--ink)';a.style.font='inherit';a.style.fontWeight='600';a.style.padding='9px 12px';a.style.border='1px solid transparent';a.style.borderRadius='10px';a.style.background='transparent';
   nav.insertAdjacentElement('afterend',a);
   function refresh(){
     const english=typeof language!=='undefined'&&language==='en';
