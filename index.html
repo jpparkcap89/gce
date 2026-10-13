@@ -5,6 +5,7 @@
   <title>Google 도구 연습실</title>
   <link rel="icon" type="image/x-icon" href="https://www.google.com/favicon.ico">
   <link rel="shortcut icon" href="https://www.google.com/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css">
   <style>
     :root{--green:#945060;--ink:#30312f;--muted:#75656b;--line:#ecd9df;--page:#fbf0f3;--surface:#fffafb;--soft:#f8e5eb;--hover:#f6e9ed;--accent-hover:#7b3f4d;--tag:#f3dce4}
     :root[data-level="L2"]{--green:#30644f;--muted:#60736a;--line:#d7e5dc;--page:#eef7f0;--surface:#fbfefb;--soft:#e4f2e8;--hover:#e9f4ec;--accent-hover:#244c3c;--tag:#ddecdf}
@@ -221,6 +222,80 @@
 .guide-action{margin-top:18px;padding:15px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
 .guide-action a{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:10px 16px;border-radius:10px;background:var(--green);color:#fff;text-decoration:none;font-weight:700}
 @media(max-width:640px){.guide-body{padding:12px 16px 20px}.guide-header{padding:12px 16px}}
+
+/* GCE x lucianLabs-inspired visual skin.
+   Presentation-only override: keep all existing IDs, handlers and data flow. */
+
+:root {
+  --ink:#19191f; --green:#313047; --muted:#646477;
+  --line:#e7e4ec; --page:#f7f7f9; --surface:#fff;
+  --soft:#f2f0ff; --hover:#f3f2f8; --accent-hover:#4038b8;
+  --tag:#eeeaff; --hero-a:#eae5ff; --hero-b:#e2f4f2;
+  --hero-c:#fff0e5; --shadow:0 12px 40px rgba(26,26,48,.045);
+  --ux-primary:#6259ed; --ux-secondary:#249bc7;
+}
+:root[data-level="L2"] {
+  --ink:#191c23; --green:#176e65; --muted:#647573;
+  --line:#dce8e5; --page:#f5faf8; --surface:#fff;
+  --soft:#e6f6ef; --hover:#eff8f4; --accent-hover:#13564f;
+  --tag:#dff5ec; --hero-a:#d7fae9; --hero-b:#e6e7ff;
+  --hero-c:#fff0e6; --shadow:0 12px 40px rgba(16,68,55,.045);
+  --ux-primary:#22796e; --ux-secondary:#3ca8c2;
+}
+html{scroll-behavior:smooth}
+body,button,select,input,textarea {font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif!important}
+body{color:var(--ink);background:radial-gradient(ellipse 58% 28% at 17% 13%,rgba(147,126,255,.115),transparent 75%),radial-gradient(ellipse 48% 30% at 89% 9%,rgba(84,205,187,.095),transparent 75%),var(--page)!important;font-size:15px;line-height:1.65;letter-spacing:-.015em;-webkit-font-smoothing:antialiased}
+main,.nav-shell{width:85%;max-width:1280px}
+.site-strip{background:linear-gradient(90deg,#eee9ff 0%,#f9f4fa 45%,#e8f8f2 100%);color:#64597c;font-size:12px;font-weight:600;padding:8px 16px;letter-spacing:.01em}
+.site-header{background:rgba(255,255,255,.86);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-color:#ebe8ef;box-shadow:0 5px 32px rgba(20,17,40,.035)}
+.nav-shell{padding:16px 0;gap:13px}
+.brand{gap:11px;cursor:pointer}
+.brand-mark{border-radius:13px!important;width:39px;height:39px;box-shadow:0 3px 14px #1614270b!important}
+.brand h1{font-size:18px;letter-spacing:-.055em;font-weight:850}
+.nav-links{gap:6px}.nav-link{font-size:13px;font-weight:700;border-radius:999px;padding:10px 13px;transition:background .18s,transform .18s}.nav-link:hover{background:var(--soft);transform:translateY(-1px)}
+.nav-controls{gap:9px}.radio-caption{font-size:12px;font-weight:750}
+.radio-options{border:1px solid var(--line);border-radius:999px;background:#f7f6fa;padding:4px;gap:2px}
+.radio-options label span{border-radius:999px;padding:7px 13px;font-weight:750;transition:background .2s,box-shadow .2s,transform .2s}
+.radio-options input:checked+span{background:white;color:var(--green);border:0;box-shadow:0 2px 10px #28263a16}
+button{border-radius:13px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease;font-weight:650}
+button:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 14px #25233811}
+button:not(:disabled):active{transform:translateY(0) scale(.985)}
+.primary{background:linear-gradient(112deg,#735ef4 0%,#4989f5 60%,#24b6b4 100%);border-color:transparent;color:white;box-shadow:0 8px 20px rgba(87,102,221,.18)}
+.primary:hover{background:linear-gradient(112deg,#6651e9,#4179e2 60%,#18a5a4);box-shadow:0 10px 24px rgba(79,89,200,.22)}
+:root[data-level="L2"] .primary{background:linear-gradient(110deg,#157767,#278d9c,#4a8ad5)}
+:root[data-level="L2"] .primary:hover{background:linear-gradient(110deg,#125e53,#22778a,#3e7bc1)}
+.card{border:1px solid var(--line);background:#ffffffed;border-radius:26px;box-shadow:var(--shadow);padding:26px}
+.hero{gap:40px;padding:46px 0 38px;align-items:center}
+.hero h2{font-size:clamp(34px,4.2vw,64px);line-height:1.12;letter-spacing:-.065em;font-weight:880;margin:16px 0 20px;max-width:680px}
+.hero-lead{font-size:17px;line-height:1.75;color:var(--muted)}
+.hero-actions button{border-radius:16px;padding:14px 22px;font-size:15px}
+.hero-meta{font-size:12px;margin-top:16px}
+.hero-art{min-height:346px;border-radius:32px;background:radial-gradient(circle at 24% 30%,#cec5ff 0,transparent 45%),radial-gradient(circle at 80% 21%,#a8f0ee 0,transparent 47%),radial-gradient(circle at 64% 90%,#ffd8ea 0,transparent 45%),#f8f7fd;border:1px solid #ffffffdd;box-shadow:0 18px 44px #392f7b10;padding:29px}
+:root[data-level="L2"] .hero-art{background:radial-gradient(circle at 25% 24%,#aeefd7 0,transparent 45%),radial-gradient(circle at 80% 23%,#c9d8ff 0,transparent 48%),radial-gradient(circle at 60% 90%,#ffe2d5 0,transparent 47%),#f7fcfa}
+.hero-art-label{font-size:11px;font-weight:850;letter-spacing:.14em;color:#68627d}
+.hero-art h3{font-size:23px;letter-spacing:-.045em;color:#211d35;font-weight:830}
+.hero-tiles{gap:11px}
+.hero-tile{background:rgba(255,255,255,.81);border:1px solid rgba(255,255,255,.92);border-radius:20px;padding:17px 9px;box-shadow:0 8px 22px #18183b08;transition:transform .18s,box-shadow .18s}
+.hero-tile:hover{transform:translateY(-3px);box-shadow:0 12px 22px #18183b14}
+.hero-tile .tool-icon{border-radius:14px}
+.level-card{border-radius:17px;background:#ffffffdf;border:1px solid #ffffffef;padding:14px 16px}
+.level-card.active{outline:2px solid var(--ux-primary);outline-offset:-2px}
+.mode,.setup-option,.choice{border-radius:17px;transition:background .18s,border-color .18s,box-shadow .18s}
+.setup-option:has(input:checked),.choice:has(input:checked){border-color:var(--ux-primary);background:#f4f2ff;box-shadow:inset 0 0 0 1px var(--ux-primary)}
+:root[data-level="L2"] .setup-option:has(input:checked),:root[data-level="L2"] .choice:has(input:checked){background:#edf9f4}
+.pill{font-weight:700}.numbers button{border-radius:11px}
+.mega-menu{border-radius:0 0 26px 26px;box-shadow:0 30px 52px #20183c20}
+.tool-link:hover{background:var(--soft)}
+#toast{background:#1e2232;color:white;border-radius:16px;padding:13px 20px;box-shadow:0 12px 35px #15142433;font-size:14px;font-weight:650}
+dialog,.guide-dialog,.tool-dialog{border-radius:24px;border:1px solid var(--line);box-shadow:0 25px 80px #16162d2b;background:white}
+dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
+.language-card{border-radius:28px;box-shadow:0 28px 90px #1717373d}
+.language-picks button{border-radius:20px}
+:focus-visible{outline:3px solid #776cf5;outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(max-width:1000px){.hero{gap:25px}.hero h2{font-size:clamp(31px,4.2vw,48px)}}
+@media(max-width:640px){main{width:100%;padding:14px;margin:0}.nav-shell{width:100%;padding:12px 14px}.card{padding:18px;border-radius:20px}.hero{padding:18px 0 25px;gap:24px}.hero h2{font-size:clamp(31px,9vw,44px)}.hero-art{border-radius:24px;padding:20px;min-height:0}.hero-actions button{padding:12px 14px}.nav-link{padding:8px 10px}.nav-links{gap:2px}}
+
 </style>
 </head>
 <body class="language-gated">
@@ -973,7 +1048,7 @@
   $('retry').onclick=()=>start('retry',lastWrong.slice());
 
   // GitHub 주소에서 실행할 GAS 웹앱 /exec 주소를 입력합니다.
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwH73ZX3YqGdhirFuHhZKdgrKxcMMckMNBIQehQvoeCpZ4tIxeuudxGIRQbtCOQN8Ul/exec';
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxa0o7OpSp7T_l1SKdrx0Ew09DS0tbz7kEPiX7s7K0ZYdN9FoOp5YWTJZ2j3EucG0u7/exec';
   const BRIDGE_CHANNEL = 'GCE_GAS_BRIDGE_V1';
   const bridgeNonce = (() => {
     const bytes = new Uint8Array(24);
