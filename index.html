@@ -1049,7 +1049,16 @@ dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
 
   // ===== GAS 통신 브리지 =====
   // GitHub 주소에서 실행할 GAS 웹앱 /exec 주소를 입력합니다.
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxa0o7OpSp7T_l1SKdrx0Ew09DS0tbz7kEPiX7s7K0ZYdN9FoOp5YWTJZ2j3EucG0u7/exec';
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyxHakn0ih7-f51gSq_KGNp3CUgrtByE3GxoaKeGJqW4rlG1BnlqNwJZ1cummbUyZQ/exec';
+  // GAS 웹앱 안에서 열렸으면 google.script.run을 직접 쓰고,
+  // GitHub 등 외부 주소에서 열렸으면 숨은 iframe 브리지를 통해 호출합니다.
+  // 그래서 이 파일 하나를 GAS(Index.html)와 GitHub(index.html)에 똑같이 넣어도 됩니다.
+  const RUNNING_IN_GAS = typeof google!=='undefined' && !!(google.script && google.script.run);
+  function directRpc(name,...args){
+    return new Promise((resolve,reject)=>{
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[name](...args);
+    });
+  }
   const BRIDGE_CHANNEL = 'GCE_GAS_BRIDGE_V1';
   const BRIDGE_TIMEOUT = 20000;
   const bridgeNonce = (() => {
@@ -1156,7 +1165,7 @@ dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
     }
     networkBusy++;
     selectorState();
-    return bridgeRpc(name,...args).finally(()=>{
+    return (RUNNING_IN_GAS?directRpc(name,...args):bridgeRpc(name,...args)).finally(()=>{
       networkBusy--;
       selectorState();
     });
@@ -2321,7 +2330,7 @@ dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
   $('homeBrand').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHomeFromBrand();}});
 
   buildToolMenus();
-  startBridge().catch(()=>{}); // 첫 연결을 미리 시작합니다. 실패하면 문항 불러오기에서 오류를 표시합니다.
+  if(!RUNNING_IN_GAS) startBridge().catch(()=>{}); // GitHub에서만 브리지 연결을 미리 시작합니다.
   openLanguageGate();
   // Language switching no longer uses sessionStorage or location.reload().
 </script>
