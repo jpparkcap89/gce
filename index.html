@@ -1047,69 +1047,99 @@ dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
   $('back').onclick=()=>show('home');
   $('retry').onclick=()=>start('retry',lastWrong.slice());
 
+  // ===== GAS 통신 브리지 =====
   // GitHub 주소에서 실행할 GAS 웹앱 /exec 주소를 입력합니다.
   const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxa0o7OpSp7T_l1SKdrx0Ew09DS0tbz7kEPiX7s7K0ZYdN9FoOp5YWTJZ2j3EucG0u7/exec';
   const BRIDGE_CHANNEL = 'GCE_GAS_BRIDGE_V1';
+  const BRIDGE_TIMEOUT = 20000;
   const bridgeNonce = (() => {
     const bytes = new Uint8Array(24);
     crypto.getRandomValues(bytes);
     return Array.from(bytes, x=>x.toString(16).padStart(2,'0')).join('');
   })();
-  let bridgeReady = false, bridgeFrame, bridgeWindow, bridgeStart, bridgeNextId=1;
+  let bridgeFrame=null, bridgeWindow=null, bridgeOrigin=null;
+  let bridgeReadyPromise=null, bridgeResolve=null, bridgeNextId=1;
   const bridgePending = new Map();
-  const bridgeReadyPromise = new Promise((resolve,reject)=>{
-    bridgeStart = {resolve,reject};
-  });
+
+  // 브리지 iframe을 만들고 ready 신호를 기다립니다.
+  // 실패하면 다음 호출(다시 불러오기) 때 iframe을 새로 만들어 재연결합니다.
   function startBridge(){
-    if(!GAS_WEB_APP_URL.startsWith('https://script.google.com/')) {
-      bridgeStart.reject(new Error('index.html의 GAS_WEB_APP_URL에 GAS /exec 주소를 설정해 주세요.'));
-      return;
-    }
-    bridgeFrame=document.createElement('iframe');
-    bridgeFrame.title='GAS 데이터 통신';
-    bridgeFrame.setAttribute('aria-hidden','true');
-    bridgeFrame.tabIndex=-1;
-    bridgeFrame.style.cssText='position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
-    const url = new URL(GAS_WEB_APP_URL);
-    url.searchParams.set('bridge','1');
-    url.searchParams.set('nonce',bridgeNonce);
-    bridgeFrame.src=url.toString();
-    document.body.append(bridgeFrame);
-    setTimeout(()=>{
-      if(!bridgeReady) bridgeStart.reject(new Error('GAS 통신 브리지 응답이 없습니다. 배포 설정과 브라우저의 제3자 쿠키 제한을 확인해 주세요.'));
-    },20000);
+    if(bridgeReadyPromise) return bridgeReadyPromise;
+    bridgeReadyPromise = new Promise((resolve,reject)=>{
+      if(!GAS_WEB_APP_URL.startsWith('https://script.google.com/')){
+        bridgeReadyPromise=null;
+        reject(new Error('index.html의 GAS_WEB_APP_URL에 GAS /exec 주소를 설정해 주세요.'));
+        return;
+      }
+      bridgeResolve = resolve;
+      if(bridgeFrame) bridgeFrame.remove();
+      bridgeWindow = null;
+      bridgeOrigin = null;
+      bridgeFrame = document.createElement('iframe');
+      bridgeFrame.title = 'GAS 데이터 통신';
+      bridgeFrame.setAttribute('aria-hidden','true');
+      bridgeFrame.tabIndex = -1;
+      bridgeFrame.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;';
+      const url = new URL(GAS_WEB_APP_URL);
+      url.searchParams.set('bridge','1');
+      url.searchParams.set('nonce',bridgeNonce);
+      bridgeFrame.src = url.toString();
+      document.body.append(bridgeFrame);
+      setTimeout(()=>{
+        if(bridgeWindow) return;
+        bridgeReadyPromise = null;
+        bridgeResolve = null;
+        console.warn('[GCE 브리지] 응답 없음. 현재 Origin:', location.origin,
+          '\n① Code.gs의 ALLOWED_ORIGINS에 이 값이 있는지',
+          '\n② 웹 앱 액세스 권한이 "모든 사용자"인지',
+          '\n③ 수정 후 "새 버전"으로 재배포했는지 확인하세요.');
+        reject(new Error('GAS 통신 브리지 응답이 없습니다. (현재 주소: '+location.origin+
+          ') GAS의 허용 주소 목록(ALLOWED_ORIGINS), 웹 앱 액세스 권한(모든 사용자), 새 버전 배포 여부를 확인해 주세요.'));
+      },BRIDGE_TIMEOUT);
+    });
+    return bridgeReadyPromise;
   }
+
   window.addEventListener('message', event=>{
     if(!bridgeFrame) return;
-    const m=event.data;
+    const m = event.data;
     if(!m || m.channel!==BRIDGE_CHANNEL || m.nonce!==bridgeNonce) return;
-    // GAS HtmlService는 자체 내부 iframe을 한 겹 더 만듭니다.
-    // 그러므로 ready 메시지의 송신 window와 연결별 nonce를 함께 검증합니다.
-    if(m.type!=='ready' && event.source!==bridgeWindow) return;
+    // GAS HtmlService는 내부 iframe을 한 겹 더 만들므로
+    // ready를 보낸 window와 origin(*.googleusercontent.com)을 기억해 두고 이후 검증합니다.
     if(m.type==='ready'){
-      if(!bridgeReady){bridgeWindow=event.source;bridgeReady=true;bridgeStart.resolve();}
+      if(!bridgeWindow){
+        bridgeWindow = event.source;
+        bridgeOrigin = event.origin;
+        if(bridgeResolve){ bridgeResolve(); bridgeResolve=null; }
+      }
       return;
     }
+    if(event.source!==bridgeWindow || event.origin!==bridgeOrigin) return;
     if(m.type==='response' && Number.isSafeInteger(m.id)){
-      const pending=bridgePending.get(m.id);
-      if(!pending)return;
+      const pending = bridgePending.get(m.id);
+      if(!pending) return;
       bridgePending.delete(m.id);
       clearTimeout(pending.timer);
       if(m.ok) pending.resolve(m.result);
       else pending.reject(new Error(m.error || '서버 요청에 실패했습니다.'));
     }
   });
+
   function bridgeRpc(name,...args){
     const allowed=['getPracticeData','loginAdmin','logoutAdmin','getAdminData','saveQuestion','getLectureData','getEnglishScenarios','getKoreanScenarios'];
-    if(!allowed.includes(name))return Promise.reject(new Error('허용되지 않은 API입니다.'));
-    return bridgeReadyPromise.then(()=>new Promise((resolve,reject)=>{
-      const id=bridgeNextId++;
-      const timer=setTimeout(()=>{
+    if(!allowed.includes(name)) return Promise.reject(new Error('허용되지 않은 API입니다.'));
+    return startBridge().then(()=>new Promise((resolve,reject)=>{
+      const id = bridgeNextId++;
+      const timer = setTimeout(()=>{
         bridgePending.delete(id);
         reject(new Error('서버 응답 시간이 초과되었습니다. 다시 시도해 주세요.'));
       },45000);
       bridgePending.set(id,{resolve,reject,timer});
-      bridgeWindow.postMessage({channel:BRIDGE_CHANNEL,nonce:bridgeNonce,type:'request',id,method:name,args},'*');
+      // '*' 대신 확인된 브리지 Origin으로만 전송합니다. (관리자 비밀번호 보호)
+      bridgeWindow.postMessage(
+        {channel:BRIDGE_CHANNEL,nonce:bridgeNonce,type:'request',id,method:name,args},
+        bridgeOrigin
+      );
     }));
   }
   function rpc(name,...args){
@@ -2291,7 +2321,7 @@ dialog::backdrop{background:rgba(17,20,29,.50);backdrop-filter:blur(3px)}
   $('homeBrand').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goHomeFromBrand();}});
 
   buildToolMenus();
-  startBridge();
+  startBridge().catch(()=>{}); // 첫 연결을 미리 시작합니다. 실패하면 문항 불러오기에서 오류를 표시합니다.
   openLanguageGate();
   // Language switching no longer uses sessionStorage or location.reload().
 </script>
